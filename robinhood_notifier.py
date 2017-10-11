@@ -15,7 +15,9 @@ import datetime
 import numpy as np
 from requests.exceptions import ConnectionError
 import os
+import logging
 
+logging.basicConfig(format='%(asctime)s: %(message)s', datefmt='%Y/%m/%d %I:%M:%S %p', level=logging.INFO)
 
 ## Configure these values in your OS environment variables
 ## Windows: http://www.dowdandassociates.com/blog/content/howto-set-an-environment-variable-in-windows-command-line-and-registry/
@@ -109,7 +111,7 @@ combined_securities = [] #combination of owned and watched lists
 # Should execute these to refresh your holding securities
 # on Robinhood every 2-5 minutes
 def refresh_security_list_from_robinhood():
-  print "refresh_security_list_from_robinhood()"
+  logging.info("refresh_security_list_from_robinhood()")
   if is_market_open():
 
     global owned_securities, watched_securities, combined_securities
@@ -126,7 +128,7 @@ def refresh_security_list_from_robinhood():
               unsupported_securities )
             break
         except urllib2.HTTPError: #Alpha Vantage API has high failure rate - retry 3 times
-            print "HTTPError exception calling Robinhood - Retry: {}/{}".format(symbol, retry_count, MAX_API_RETRIES)
+            logging.error("HTTPError exception calling Robinhood - Retry: {}/{}".format(symbol, retry_count, MAX_API_RETRIES))
             retry_count = retry_count + 1
             sleep(0.5)
 
@@ -134,14 +136,14 @@ def refresh_security_list_from_robinhood():
 # Suggest to run 3 times: (1) before go to bed, (2) after market opens 30 minutes, (3) before market closes 30 minutes
 # If MACD crosses over 0.0 - Signal BUY or SELL
 def evaluate_daily_positions():
-  print "evaluate_daily_positions()"
+  logging.info("evaluate_daily_positions()")
   global owned_securities, watched_securities, combined_securities
   own_buy = []
   own_sell = []
   watch_buy = []
   watch_sell = []
   for symbol in combined_securities:
-    print "processing {}".format(symbol)
+    logging.info("processing {}".format(symbol))
     retry_count = 1
     while (retry_count <= MAX_API_RETRIES):
       try:
@@ -162,21 +164,21 @@ def evaluate_daily_positions():
         #     print symbol
         break
       except KeyError as e:
-        print "[{}] is not supported by Alpha Vantage.".format(symbol)
+        logging.error("[{}] is not supported by Alpha Vantage.".format(symbol))
         break
       except urllib2.HTTPError: #Alpha Vantage API has high failure rate - retry 3 times
-        print "[{}] - Exception HTTPError - Retry: {}/{}".format(symbol, retry_count, MAX_API_RETRIES)
+        logging.error( "[{}] - Exception HTTPError - Retry: {}/{}".format(symbol, retry_count, MAX_API_RETRIES))
         retry_count = retry_count + 1
         sleep(0.5)
     sleep(0.5) # Time in seconds.
 
 
   if own_sell:
-    print msg_template['MACD_OWN_SELL'].format(lst_to_str(own_sell))
+    logging.info( msg_template['MACD_OWN_SELL'].format(lst_to_str(own_sell)))
     po_client.send_message(msg_template['MACD_OWN_SELL'].format(lst_to_str(own_sell)), title=PO_TITLE)
 
   if watch_buy:
-    print msg_template['MACD_WATCH_BUY'].format(lst_to_str(watch_buy))
+    logging.info( msg_template['MACD_WATCH_BUY'].format(lst_to_str(watch_buy)))
     po_client.send_message(msg_template['MACD_WATCH_BUY'].format(lst_to_str(watch_buy)), title=PO_TITLE)
 
 
@@ -185,7 +187,7 @@ def evaluate_daily_positions():
 # IF in SHORT position and last price spikes ABOVE fast ema -> Exit SHORT (can buy)
 # Run every x minutes - can use period defined in fast_interval - don't run this too frequent
 def evaluate_intraday_positions():
-  print "evaluate_intraday_positions()"
+  logging.info( "evaluate_intraday_positions()")
   if is_market_open():
     own_buy = []
     own_sell = []
@@ -193,7 +195,7 @@ def evaluate_intraday_positions():
     watch_sell = []
     global owned_securities, watched_securities, combined_securities
     for symbol in combined_securities:
-      print "processing {}".format(symbol)
+      logging.info( "processing {}".format(symbol))
       retry_count = 1
       while (retry_count <= MAX_API_RETRIES):
         try:
@@ -217,7 +219,7 @@ def evaluate_intraday_positions():
                     watch_buy.append(symbol)
           else: # EMA crossing!!!
             msg = "[{}] EMAs crossing, must BUY/SELL now!".format(symbol)
-            print msg
+            logging.info( msg)
             po_client.send_message(msg, title=PO_TITLE)
 
             # TODO: process crossing better
@@ -227,29 +229,29 @@ def evaluate_intraday_positions():
             #     print "[{}] EMAs crossing, must SELL now!".format(symbol)
           break
         except KeyError as e:
-          print "[{}] is not supported by Alpha Vantage.".format(symbol)
+          logging.error( "[{}] is not supported by Alpha Vantage.".format(symbol))
           break
         except urllib2.HTTPError: #Alpha Vantage API has high failure rate - retry 3 times
-          print "[{}] - Exception HTTPError - Retry: {}/{}".format(symbol, retry_count, MAX_API_RETRIES)
+          logging.error( "[{}] - Exception HTTPError - Retry: {}/{}".format(symbol, retry_count, MAX_API_RETRIES))
           retry_count = retry_count + 1
           sleep(0.5)
       sleep(0.5) # Time in seconds.
 
 
     if own_sell:
-      print msg_template['PRICE_CROSS_EMA_OWN_EXIT_LONG'].format(lst_to_str(own_sell))
+      logging.info( msg_template['PRICE_CROSS_EMA_OWN_EXIT_LONG'].format(lst_to_str(own_sell)))
       po_client.send_message(msg_template['PRICE_CROSS_EMA_OWN_EXIT_LONG'].format(lst_to_str(own_sell)), title=PO_TITLE)
 
     if watch_buy:
-      print msg_template['PRICE_CROSS_EMA_WATCH_EXIT_SHORT'].format(lst_to_str(watch_buy))
+      logging.info( msg_template['PRICE_CROSS_EMA_WATCH_EXIT_SHORT'].format(lst_to_str(watch_buy)))
       po_client.send_message(msg_template['PRICE_CROSS_EMA_WATCH_EXIT_SHORT'].format(lst_to_str(watch_buy)), title=PO_TITLE)
 
 
-print "Service start!"
+logging.info( "Service start!")
 
-# refresh_security_list_from_robinhood()
-# evaluate_daily_positions()
-# evaluate_intraday_positions()
+refresh_security_list_from_robinhood()
+evaluate_daily_positions()
+evaluate_intraday_positions()
 
 # Refresh security list from Robinhood every X minutes
 schedule.every(REFRESH_SECURITIES_INTERVAL).minutes.do(refresh_security_list_from_robinhood)
