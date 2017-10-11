@@ -205,18 +205,12 @@ def evaluate_intraday_positions():
           last_price = price[0].tail(1)['close'][0]
           if last_fast_ema > last_slow_ema: #LONG
               if last_price < last_slow_ema:
-                  # print "[{}] Exit LONG position, consider SELL \n[last:{}, slow_ema:{}]".format(symbol, last_price, last_slow_ema)
-                  # msg = "[{}] Exit LONG position, consider SELL \n[last:{}, slow_ema:{}]".format(symbol, last_price, last_slow_ema)
-                  # po_client.send_message(msg, title=PO_TITLE)
                   if symbol in owned_securities:
                     own_sell.append(symbol)
                   else:
                     watch_sell.append(symbol)
           elif last_fast_ema < last_slow_ema: #SHORT
               if last_price > last_fast_ema:
-                  # print "[{}] Exit SHORT position, consider BUY \n[last:{}, fast_ema:{}]".format(symbol, last_price, last_fast_ema)
-                  # msg = "[{}] Exit SHORT position, consider BUY \n[last:{}, fast_ema:{}]".format(symbol, last_price, last_fast_ema)
-                  # po_client.send_message(msg, title=PO_TITLE)
                   if symbol in owned_securities:
                     own_buy.append(symbol)
                   else:
